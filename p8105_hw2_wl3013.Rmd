@@ -5,8 +5,29 @@ date: "2025-09-27"
 output: html_document
 ---
 
-# Question 1
 ```{r setup, include=FALSE}
+library(tidyverse)
+```
+
+# Question 1
+### Step 1: Clean the data in pol-month.csv
+```{r}
+polmonth_df = 
+  read.csv(
+    "pols-month.csv",
+    na = c("NA",".","")
+  ) |> 
+  janitor::clean_names() |> 
+  separate(mon,into = c("year","month","day",sep = "-")) |>
+  mutate(
+    month = month.name[as.integer(month)] 
+    ) |> 
+  mutate(
+    president = case_when(
+      prez_gop == 1 ~ "gop",
+      prez_dem == 1 ~ "dem"
+    )) |> 
+  select(-prez_gop, -prez_dem, -day)
 
 ```
 
