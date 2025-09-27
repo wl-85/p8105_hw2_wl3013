@@ -46,3 +46,28 @@ snp_df =
   arrange(year, month)
 ```
 
+### Step 3: Clean the data in unemployment.csv
+```{r}
+unemp_df = 
+  read.csv(
+    "unemployment.csv", na = c("NA",".","")
+  ) |> 
+  janitor::clean_names() |> 
+  pivot_longer(
+    cols = -year,
+    names_to = "month",
+    values_to = "unemployment"
+  ) |> 
+  # Capitalize "month" variable
+  mutate(
+    month_num = match(str_to_title(month), month.abb),
+    month = month.name[month_num]
+  ) |> 
+  select(-month_num)
+```
+
+### Step 4: Merge the datasets
+```{r}
+
+```
+
