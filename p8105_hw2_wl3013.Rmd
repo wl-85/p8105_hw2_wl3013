@@ -31,3 +31,18 @@ polmonth_df =
 
 ```
 
+### Step 2: Clean the data in snp.csv
+```{r}
+snp_df = 
+  read.csv(
+    "snp.csv", na = c("NA",".","")
+  ) |> 
+  janitor::clean_names() |> 
+  mutate(date = mdy(date)) |> 
+  separate(date,into = c("year","month","day",sep = "-")) |>
+  mutate(
+    month = month.name[as.integer(month)] 
+    ) |> 
+  arrange(year, month)
+```
+
