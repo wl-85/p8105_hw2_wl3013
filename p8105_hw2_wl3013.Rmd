@@ -100,7 +100,8 @@ mr_df <- read_excel("Trashwheel.xlsx", sheet = "Mr. Trash Wheel", skip = 1) |>
   mutate(
     sports_balls = as.integer(round(sports_balls)),
     tag = "Mr" #Record the source of data
-    ) 
+    ) |> 
+  select(-x15,-x16)
 
 # Import "Professor Trash Wheel" sheet
 prof_df <- read_excel("Trashwheel.xlsx", sheet = "Professor Trash Wheel", skip = 1) |> 
@@ -151,5 +152,5 @@ gw_cigs <- trashall_df |>
   pull(total_weight)
 ```
 The final dataset contains `r nrow(trashall_df)` observations, with essentials variables regarding these research. For example, each row represents the contents of dumster load, the trash weight in tons, the number of cigarette butts, the number of sports balls, and the time of the data collected.
-For the questions, Professor Trash Wheel has collected `r prof_weight` tons of trash, and Gwynnda collected `r gw_cigs` cigarette butts in June 2022.
+For the questions, Professor Trash Wheel has collected `r prof_weight` tons of trash, and Gwynnda collected 18120 cigarette butts in June 2022.
 
