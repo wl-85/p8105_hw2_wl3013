@@ -81,8 +81,9 @@ merge_df =
   polmonth_df |> 
   left_join(snpsub_df, by = c("year","month")) |> 
   left_join(unemp_df, by = c("year","month"))
-
-# In snp_df, it contains "year", "month", and "close". In the unemp_df, it contains "year", "month", and "unemployment". The same variables among these data is "year" and "month". 
-# In the final dataset "merge_df", for the variable "close" from snp_data and "unemployment" from unemp_df, only part of the objects have data value.
 ```
+
+Conclusion: 
+In snp_df, it contains "year", "month", and "close". In the unemp_df, it contains "year", "month", and "unemployment". The same variables among these data is "year" and "month". 
+In the final dataset "merge_df", for the variable "close" from snp_data and "unemployment" from unemp_df, only part of the objects have data value.
 
