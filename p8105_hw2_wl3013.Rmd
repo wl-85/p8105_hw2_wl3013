@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 library(tidyverse)
+library(readxl)
 ```
 
 # Question 1
@@ -86,4 +87,69 @@ merge_df =
 Conclusion: 
 In snp_df, it contains "year", "month", and "close". In the unemp_df, it contains "year", "month", and "unemployment". The same variables among these data is "year" and "month". 
 In the final dataset "merge_df", for the variable "close" from snp_data and "unemployment" from unemp_df, only part of the objects have data value.
+
+
+
+# Question 2
+### Step 1: Import and clean data from excel
+```{r}
+# Import "Mr. Trash Wheel" sheet from the excel file and clean the data
+mr_df <- read_excel("Trashwheel.xlsx", sheet = "Mr. Trash Wheel", skip = 1) |> 
+  janitor::clean_names() |> 
+  filter(!is.na(dumpster)) |> 
+  mutate(
+    sports_balls = as.integer(round(sports_balls)),
+    tag = "Mr" #Record the source of data
+    ) 
+
+# Import "Professor Trash Wheel" sheet
+prof_df <- read_excel("Trashwheel.xlsx", sheet = "Professor Trash Wheel", skip = 1) |> 
+  janitor::clean_names() |> 
+  filter(!is.na(dumpster)) |> 
+  mutate(
+    year = as.character(year),
+    tag = "Prof"
+  )
+
+# Import "Captain Trash Wheel" sheet
+cap_df <- read_excel("Trashwheel.xlsx", sheet = "Captain Trash Wheel", skip = 1) |> 
+  janitor::clean_names() |> 
+  filter(!is.na(dumpster)) |> 
+  mutate(
+    year = as.character(year),
+    tag = "Cap"
+  )
+
+# Import "Gwynnda Trash Wheel" sheet
+gwy_df <- read_excel("Trashwheel.xlsx", sheet = "Gwynnda Trash Wheel", skip = 1) |> 
+  janitor::clean_names() |> 
+  filter(!is.na(dumpster)) |> 
+  mutate(
+    year = as.character(year),
+    tag = "Gwy"
+  )
+
+```
+
+### Step 2: Combines these datasets into one
+```{r}
+trashall_df <- bind_rows(mr_df, prof_df, cap_df, gwy_df) |> 
+  arrange(year, month, dumpster)
+```
+
+### Step 3: Conclude the dataset
+```{r}
+# Calculate the statistics for answering the questions
+prof_weight <- trashall_df |> 
+  filter(tag == "Prof") |> 
+  summarise(total_weight = sum(weight_tons, na.rm = TRUE)) |> 
+  pull(total_weight)
+
+gw_cigs <- trashall_df |> 
+  filter(tag == "Gwy", year == 2022, month == "June") |> 
+  summarise(total_weight = sum(cigarette_butts, na.rm = TRUE)) |> 
+  pull(total_weight)
+```
+The final dataset contains `r nrow(trashall_df)` observations, with essentials variables regarding these research. For example, each row represents the contents of dumster load, the trash weight in tons, the number of cigarette butts, the number of sports balls, and the time of the data collected.
+For the questions, Professor Trash Wheel has collected `r prof_weight` tons of trash, and Gwynnda collected `r gw_cigs` cigarette butts in June 2022.
 
