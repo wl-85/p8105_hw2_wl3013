@@ -68,6 +68,19 @@ unemp_df =
 
 ### Step 4: Merge the datasets
 ```{r}
+# Create a subset for snp, choosing the variables we need for merge
+snpsub_df = 
+  snp_df |> 
+  select(year, month, snp_close = close)
+
+# Change the variable type of "year" from int to chr
+unemp_df <- unemp_df |> 
+  mutate(year = as.character(year))
+
+merge_df = 
+  polmonth_df |> 
+  left_join(snpsub_df, by = c("year","month")) |> 
+  left_join(unemp_df, by = c("year","month"))
 
 ```
 
