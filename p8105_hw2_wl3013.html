@@ -448,7 +448,8 @@ mr_df &lt;- read_excel(&quot;Trashwheel.xlsx&quot;, sheet = &quot;Mr. Trash Whee
   mutate(
     sports_balls = as.integer(round(sports_balls)),
     tag = &quot;Mr&quot; #Record the source of data
-    ) </code></pre>
+    ) |&gt; 
+  select(-x15,-x16)</code></pre>
 <pre><code>## New names:
 ## • `` -&gt; `...15`
 ## • `` -&gt; `...16`</code></pre>
@@ -501,8 +502,146 @@ variables regarding these research. For example, each row represents the
 contents of dumster load, the trash weight in tons, the number of
 cigarette butts, the number of sports balls, and the time of the data
 collected. For the questions, Professor Trash Wheel has collected 246.74
-tons of trash, and Gwynnda collected 1.812^{4} cigarette butts in June
+tons of trash, and Gwynnda collected 18120 cigarette butts in June
 2022.</p>
+</div>
+</div>
+<div id="question-3" class="section level1">
+<h1>Question 3</h1>
+<div id="step-1-import-data-and-clean-data" class="section level3">
+<h3>Step 1: Import data and clean data</h3>
+<pre class="r"><code># Write a function to standardize the name of county
+norm_borough &lt;- function(x) {
+  x |&gt; 
+    str_squish() |&gt; str_to_title() |&gt; 
+    recode(
+      &quot;New York&quot; = &quot;Manhattan&quot;, &quot;New York County&quot; = &quot;Manhattan&quot;,
+      &quot;Kings&quot; = &quot;Brooklyn&quot;, &quot;Kings County&quot; = &quot;Brooklyn&quot;,
+      &quot;Queens&quot; = &quot;Queens&quot;, &quot;Queens County&quot; = &quot;Queens&quot;,
+      &quot;Bronx&quot; = &quot;Bronx&quot;, &quot;Bronx County&quot; = &quot;Bronx&quot;,
+      &quot;Richmond&quot; = &quot;Staten Island&quot;, &quot;Richmond County&quot; = &quot;Staten Island&quot;
+    )
+}
+
+# Import &quot;zip_zori&quot; file and clean the data
+zori_clean_df = 
+  read.csv(
+    &quot;zip_zori.csv&quot;,
+    na = c(&quot;NA&quot;,&quot;.&quot;,&quot;&quot;)
+  ) |&gt; 
+  janitor::clean_names() |&gt; 
+  # Change date from rows to a column
+  pivot_longer(
+    cols = 10:last_col(),
+    names_to = &quot;date&quot;,
+    values_to = &quot;zori&quot;
+  ) |&gt; 
+  # Clean the variable date
+  mutate(
+    date = str_remove(date,&quot;^x&quot;) |&gt; 
+      str_replace_all(&quot;_&quot;,&quot;-&quot;)
+  ) |&gt; 
+  transmute(
+    zip_code = region_name,
+    borough = norm_borough(county_name),
+    date,
+    zori
+  )
+
+# Import &quot;zip_codes&quot; file and clean the data
+codes_clean_df = 
+  read.csv(
+    &quot;zip_codes.csv&quot;,
+    na = c(&quot;NA&quot;,&quot;.&quot;,&quot;&quot;)
+  ) |&gt; 
+  janitor::clean_names() |&gt; 
+  mutate(
+    date = mdy(file_date),
+    date = as.character(date)
+  )  |&gt; 
+  select(-file_date) |&gt; 
+  transmute(
+    zip_code,
+    borough = norm_borough(county),
+    date,
+    neighborhood
+  ) |&gt; 
+  distinct(zip_code, borough, neighborhood, .keep_all =  TRUE)</code></pre>
+</div>
+<div id="step-2-combine-2-datasets" class="section level3">
+<h3>Step 2: Combine 2 datasets</h3>
+<pre class="r"><code># For codes_clean_df, only keep one row for each zip code, preventing &quot;many-to-many&quot; match
+codes_one &lt;- codes_clean_df |&gt; 
+  arrange(zip_code, borough, neighborhood) |&gt; 
+  distinct(zip_code, .keep_all = TRUE)
+
+# Delect columns with the same name
+zori_for_join &lt;- zori_clean_df |&gt; 
+  select(-any_of(c(&quot;borough&quot;, &quot;neighborhood&quot;)))
+
+# Join the datasets and sort
+final_tidy_df &lt;- zori_for_join |&gt; 
+  left_join(
+    codes_one |&gt;  select(zip_code, borough, neighborhood),
+    by = &quot;zip_code&quot;,
+    relationship = &quot;many-to-one&quot;,
+    suffix = c(&quot;&quot;, &quot;_from_codes&quot;)
+  ) |&gt; 
+  arrange(date, borough, neighborhood, zip_code)</code></pre>
+</div>
+<div id="step-3-describe-the-final_tidy_df-and-answer-the-questions" class="section level3">
+<h3>Step 3: Describe the final_tidy_df and answer the questions</h3>
+<pre class="r"><code>sum_stats &lt;- list(
+  n_rows = nrow(final_tidy_df),
+  n_unique_zips = n_distinct(final_tidy_df$zip_code),
+  n_unique_neighs = n_distinct(final_tidy_df$neighborhood)
+)</code></pre>
+<p>There is 17284 observations in this final tidy data set. There are
+149 unique ZIP codes, and 43 unique neighborhoods.</p>
+<pre class="r"><code>zips_not_zori &lt;- codes_clean_df |&gt; 
+  anti_join(zori_clean_df |&gt;  distinct(zip_code), by = &quot;zip_code&quot;) |&gt; 
+  arrange(borough, zip_code)
+
+zips_missing_examples &lt;- zips_not_zori |&gt;  slice_head(n = 10)</code></pre>
+<p>There are 171 observations appear in the ZIP code data set but not in
+the Zillow Rental Price data set. One of the reason for that is the
+Zillow data set doesn’t cover in these area, or maybe these areas are
+non-residential zones.</p>
+<pre class="r"><code># Compare the drop price between 2020.01 and 2021.01
+jan_2020 &lt;- final_tidy_df |&gt; 
+  filter(date &gt;= ymd(&quot;2020-01-01&quot;), date &lt; ymd(&quot;2020-02-01&quot;))
+
+jan_2021 &lt;- final_tidy_df |&gt; 
+  filter(date &gt;= ymd(&quot;2021-01-01&quot;), date &lt; ymd(&quot;2021-02-01&quot;))
+
+drop_2021_vs_2020 &lt;- jan_2020 |&gt; 
+  select(zip_code, zori_2020_01 = zori) |&gt; 
+  inner_join(jan_2021 |&gt;  select(zip_code, zori_2021_01 = zori), by = &quot;zip_code&quot;) |&gt; 
+  mutate(drop = zori_2021_01 - zori_2020_01) |&gt; 
+  arrange(drop) 
+
+# Select top 10 price-drop zip code
+top10_drop &lt;- drop_2021_vs_2020 |&gt;  
+  slice_head(n = 10)
+print(top10_drop)</code></pre>
+<pre><code>## # A tibble: 10 × 4
+##    zip_code zori_2020_01 zori_2021_01  drop
+##       &lt;int&gt;        &lt;dbl&gt;        &lt;dbl&gt; &lt;dbl&gt;
+##  1    10007        6334.        5422. -913.
+##  2    10069        4623.        3875. -748.
+##  3    10009        3406.        2692. -714.
+##  4    10016        3731.        3019. -712.
+##  5    10001        4108.        3398. -710.
+##  6    10002        3645.        2935. -710.
+##  7    10004        3150.        2444. -706.
+##  8    10038        3573.        2876. -698.
+##  9    10012        3629.        2942. -686.
+## 10    10010        3697.        3012. -685.</code></pre>
+<p>Conclusion: The top 10 price-drop ranging from 684.9 to 912.6, and
+all 10 areas are Manhattan. The largest price-drop is zip code 10007,
+with 912.6 price drop comparing 2020 January to 2021 January. This
+pattern matches the COVID shock, remote work, shutdown of offices, and
+restaurants hit office-concentric Manhattan hardest.</p>
 </div>
 </div>
 

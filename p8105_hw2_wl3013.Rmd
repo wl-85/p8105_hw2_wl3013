@@ -242,3 +242,45 @@ final_tidy_df <- zori_for_join |>
 
 ```
 
+### Step 3: Describe the final_tidy_df and answer the questions
+```{r}
+sum_stats <- list(
+  n_rows = nrow(final_tidy_df),
+  n_unique_zips = n_distinct(final_tidy_df$zip_code),
+  n_unique_neighs = n_distinct(final_tidy_df$neighborhood)
+)
+```
+There is `r nrow(final_tidy_df)` observations in this final tidy data set. There are `r n_distinct(final_tidy_df$zip_code)` unique ZIP codes, and `r n_distinct(final_tidy_df$neighborhood)` unique neighborhoods.
+
+
+```{r}
+zips_not_zori <- codes_clean_df |> 
+  anti_join(zori_clean_df |>  distinct(zip_code), by = "zip_code") |> 
+  arrange(borough, zip_code)
+
+zips_missing_examples <- zips_not_zori |>  slice_head(n = 10)
+```
+There are `r nrow(zips_not_zori)` observations appear in the ZIP code data set but not in the Zillow Rental Price data set. 
+One of the reason for that is the Zillow data set doesn't cover in these area, or maybe these areas are non-residential zones.
+
+
+```{r}
+# Compare the drop price between 2020.01 and 2021.01
+jan_2020 <- final_tidy_df |> 
+  filter(date >= ymd("2020-01-01"), date < ymd("2020-02-01"))
+
+jan_2021 <- final_tidy_df |> 
+  filter(date >= ymd("2021-01-01"), date < ymd("2021-02-01"))
+
+drop_2021_vs_2020 <- jan_2020 |> 
+  select(zip_code, zori_2020_01 = zori) |> 
+  inner_join(jan_2021 |>  select(zip_code, zori_2021_01 = zori), by = "zip_code") |> 
+  mutate(drop = zori_2021_01 - zori_2020_01) |> 
+  arrange(drop) 
+
+# Select top 10 price-drop zip code
+top10_drop <- drop_2021_vs_2020 |>  
+  slice_head(n = 10)
+print(top10_drop)
+```
+Conclusion: The top 10 price-drop ranging from 684.9 to 912.6, and all 10 areas are Manhattan. The largest price-drop is zip code 10007, with 912.6 price drop comparing 2020 January to 2021 January. This pattern matches the COVID shock, remote work, shutdown of offices, and restaurants hit office-concentric Manhattan hardest.
