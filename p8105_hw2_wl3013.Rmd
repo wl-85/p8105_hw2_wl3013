@@ -8,6 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 library(tidyverse)
 library(readxl)
+library(lubridate)
 ```
 
 # Question 1
@@ -153,4 +154,91 @@ gw_cigs <- trashall_df |>
 ```
 The final dataset contains `r nrow(trashall_df)` observations, with essentials variables regarding these research. For example, each row represents the contents of dumster load, the trash weight in tons, the number of cigarette butts, the number of sports balls, and the time of the data collected.
 For the questions, Professor Trash Wheel has collected `r prof_weight` tons of trash, and Gwynnda collected 18120 cigarette butts in June 2022.
+
+
+# Question 3
+### Step 1: Import data and clean data
+```{r}
+# Write a function to standardize the name of county
+norm_borough <- function(x) {
+  x |> 
+    str_squish() |> str_to_title() |> 
+    recode(
+      "New York" = "Manhattan", "New York County" = "Manhattan",
+      "Kings" = "Brooklyn", "Kings County" = "Brooklyn",
+      "Queens" = "Queens", "Queens County" = "Queens",
+      "Bronx" = "Bronx", "Bronx County" = "Bronx",
+      "Richmond" = "Staten Island", "Richmond County" = "Staten Island"
+    )
+}
+
+# Import "zip_zori" file and clean the data
+zori_clean_df = 
+  read.csv(
+    "zip_zori.csv",
+    na = c("NA",".","")
+  ) |> 
+  janitor::clean_names() |> 
+  # Change date from rows to a column
+  pivot_longer(
+    cols = 10:last_col(),
+    names_to = "date",
+    values_to = "zori"
+  ) |> 
+  # Clean the variable date
+  mutate(
+    date = str_remove(date,"^x") |> 
+      str_replace_all("_","-")
+  ) |> 
+  transmute(
+    zip_code = region_name,
+    borough = norm_borough(county_name),
+    date,
+    zori
+  )
+
+# Import "zip_codes" file and clean the data
+codes_clean_df = 
+  read.csv(
+    "zip_codes.csv",
+    na = c("NA",".","")
+  ) |> 
+  janitor::clean_names() |> 
+  mutate(
+    date = mdy(file_date),
+    date = as.character(date)
+  )  |> 
+  select(-file_date) |> 
+  transmute(
+    zip_code,
+    borough = norm_borough(county),
+    date,
+    neighborhood
+  ) |> 
+  distinct(zip_code, borough, neighborhood, .keep_all =  TRUE)
+
+```
+
+### Step 2: Combine 2 datasets
+```{r}
+# For codes_clean_df, only keep one row for each zip code, preventing "many-to-many" match
+codes_one <- codes_clean_df |> 
+  arrange(zip_code, borough, neighborhood) |> 
+  distinct(zip_code, .keep_all = TRUE)
+
+# Delect columns with the same name
+zori_for_join <- zori_clean_df |> 
+  select(-any_of(c("borough", "neighborhood")))
+
+# Join the datasets and sort
+final_tidy_df <- zori_for_join |> 
+  left_join(
+    codes_one |>  select(zip_code, borough, neighborhood),
+    by = "zip_code",
+    relationship = "many-to-one",
+    suffix = c("", "_from_codes")
+  ) |> 
+  arrange(date, borough, neighborhood, zip_code)
+
+```
 
